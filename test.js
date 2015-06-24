@@ -2,12 +2,8 @@ var fs = require("fs"),
     http = require("http"),
     request = require('request'),
     url = require('url'),
+    md5 = require('MD5'),
     exec = require("child_process").exec;
-
-
-// exec("df -h", function(err, stdout, stderr) {
-//   console.log(err, stdout, stderr);
-// });
 
 http.createServer(responseHandler).listen(8888);
 
@@ -17,9 +13,10 @@ function responseHandler(req, res) {
     return;
   }
 
-  // exec("vm_stat", function(err, stdout, stderr) {
-  //   res.end(stdout.match(/free:\s+(\d+)\./)[1]);
-  // });
+  var choice = req.url.match(/\/[A-z]+\//);
+  if(choice){
+    choice = choice[0];
+  }
 
   if (req.url === "/") {
     // server index.html
@@ -27,12 +24,31 @@ function responseHandler(req, res) {
     fs.readFile('index.html', 'utf8', function (err,data) {
       res.end(data);
     });
-  } else {
-    res.writeHead(200, {"Content-Type": "text/plain"});
-    request('http://points.agilelabs.com'+req.url+'.json', function (error, response, body) {
-      if (!error && response.statusCode == 200) {
-        res.end(body);
-      }
-    });
+  }
+  else if(choice === '/gravatarUrl/'){
+    var email = req.url.replace(/(\/[A-z]+\/)([^\s]+)$/, '$2');
+    res.end("http://www.gravatar.com/avatar/" + md5(email));
+  }
+  else if(choice === '/Calc/'){
+    var operation = req.url.replace(/(\/[A-z]+\/)([^\s]+)$/, '$2');
+    var elements = operation.match(/([\d]+)([\D])([\d]+)/);
+    var operator = {
+      '+': function(a, b){return a + b},
+      '-': function(a, b){return a - b},
+      '*': function(a, b){return a * b},
+      '/': function(a, b){return a / b}
+    }
+    res.end(elements[0] + '=' + operator[elements[2]](parseInt(elements[1]), parseInt(elements[3])));
+  }
+  else if(choice === '/Counts/'){
+    var sentance = req.url.replace(/(\/[A-z]+\/)(.*)$/, '$2');
+    var clean = sentance.replace(/%20/g, ' ');
+    var wordsMatch = clean.match(/\w+/g) || { length: 0 };
+    var numbersMatch = clean.match(/[0-9]/g) || { length: 0 };
+    var spacesMatch = clean.match(/\s/g) || { length: 0 };
+    res.end('words: ' + wordsMatch.length + '\nnumbers: ' + numbersMatch.length + '\nspaces: ' + spacesMatch.length);
+  }
+  else{
+    res.end('<h1>404: this is not the page you\'re looking for O.o</h1>');
   }
 }
